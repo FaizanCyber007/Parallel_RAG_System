@@ -43,6 +43,24 @@ const Message = ({ message, isLoading = false }) => {
               <span className="dot">.</span>
               <span className="dot">.</span>
             </div>
+          ) : message.type === "retrieval" && Array.isArray(message.results) ? (
+            <div className="retrieval-results">
+              <h4>Retrieved & Re-ranked Results</h4>
+              <ul>
+                {message.results.map((r, i) => (
+                  <li key={i} className="retrieval-item">
+                    <div className="retrieval-meta">
+                      <strong>{i + 1}.</strong>
+                      <span className="retrieval-score"> score: {typeof r.score === 'number' ? r.score.toFixed(3) : r.score}</span>
+                      <span className="retrieval-source"> {r.metadata?.source_file || r.metadata?.source || r.source || ''}</span>
+                    </div>
+                    <div className="retrieval-snippet">
+                      {r.page_content ? r.page_content.slice(0, 400) : (r.content ? r.content.slice(0,400) : '')}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : (
             <ReactMarkdown
               components={{

@@ -19,3 +19,10 @@ chromadb
 # Web Framework
 fastapi
 uvicorn
+
+# OCR & File Handling
+pytesseract
+pillow
+pypdf
+pdfplumber
+python-multipart

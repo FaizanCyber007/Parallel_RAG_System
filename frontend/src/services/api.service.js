@@ -116,6 +116,22 @@ export const chatAPI = {
   },
 
   /**
+   * Retrieve documents from the RAG pipeline (supports reranking)
+   * payload: { query: string, rerank: boolean, rerank_k?: number }
+   */
+  retrieveDocuments: async (query, rerank = false, rerank_k = null) => {
+    try {
+      const payload = { query, rerank };
+      if (rerank_k) payload.rerank_k = rerank_k;
+      const response = await apiClient.post(API_ENDPOINTS.RAG_RETRIEVE, payload);
+      return response.data;
+    } catch (error) {
+      console.error("RAG retrieve error:", error.response?.data || error.message);
+      throw error.response?.data || error.message;
+    }
+  },
+
+  /**
    * Check API health
    */
   checkHealth: async () => {

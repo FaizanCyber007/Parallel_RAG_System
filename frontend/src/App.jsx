@@ -14,6 +14,8 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [retrieving, setRetrieving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [modelsLoading, setModelsLoading] = useState(true);
   const messagesEndRef = useRef(null);
@@ -80,60 +82,101 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSendMessage = async (messageText) => {
-    if (!selectedModel || !messageText.trim()) return;
+  const handleSendMessage = async ({ message, rerank, files }) => {
+    if (!selectedModel || (!message?.trim() && files.length === 0)) return;
+
+    // ---------- SHOW USER MESSAGE ----------
+    let displayContent = message;
+    if (files.length > 0) {
+      const fileNames = files.map(f => f.name).join(", ");
+      displayContent = message
+        ? `${message}\n📎 Files: ${fileNames}`
+        : `📎 Files: ${fileNames}`;
+    }
 
     const userMessage = {
       role: "user",
-      content: messageText,
+      content: displayContent,
       timestamp: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
     setError(null);
 
     try {
-      // Get conversation history (last 10 messages for context)
-      const conversationHistory = messages.slice(-10);
+      let response;
 
-      const response = await chatAPI.sendMessage(
-        selectedModel,
-        messageText,
-        conversationHistory,
-        currentSessionId
-      );
-
-      if (response.success) {
-        const assistantMessage = {
-          role: "assistant",
-          content: response.response,
-          model: response.model,
-          timestamp: new Date().toISOString(),
-          metrics: response.metrics
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        
-        // If this was a new session (implicitly created by backend or first message), update session list
-        if (!currentSessionId || response.conversationId !== currentSessionId) {
-            setCurrentSessionId(response.conversationId);
-            loadSessions(); // Reload list to show new title/session
-        } else {
-            // Update local session list title if needed (optional optimization)
-            loadSessions();
+      // ---------- FILE + OCR PATH ----------
+      if (files.length > 0) {
+        const formData = new FormData();
+        formData.append("message", message || "");
+        formData.append("modelId", selectedModel);
+        if (currentSessionId) {
+          formData.append("conversationId", currentSessionId);
         }
-      } else {
-        throw new Error(response.error || "Failed to get response");
+        files.forEach((file) => formData.append("files", file));
+
+        const res = await fetch(
+          "http://localhost:5000/api/chat/chat-with-files",
+          { method: "POST", body: formData }
+        );
+        response = await res.json();
       }
+
+      // ---------- NORMAL CHAT PATH ----------
+      else {
+        // RERANK (optional, unchanged logic)
+        if (rerank) {
+          setRetrieving(true);
+          try {
+            const retrieveResp = await chatAPI.retrieveDocuments(message, true);
+            if (retrieveResp?.results) {
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: "assistant",
+                  type: "retrieval",
+                  results: retrieveResp.results,
+                  model: "RAG",
+                  timestamp: new Date().toISOString(),
+                },
+              ]);
+            }
+          } catch {}
+          setRetrieving(false);
+        }
+
+        setGenerating(true);
+        response = await chatAPI.sendMessage(
+          selectedModel,
+          message,
+          messages.slice(-10),
+          currentSessionId
+        );
+      }
+
+      // ---------- SHOW ASSISTANT MESSAGE ----------
+      const assistantMessage = {
+        role: "assistant",
+        content: response.response || response.extracted_text,
+        timestamp: new Date().toISOString(),
+        metrics: response.metrics,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      if (response.conversationId && response.conversationId !== currentSessionId) {
+        setCurrentSessionId(response.conversationId);
+        loadSessions();
+      }
+
     } catch (err) {
-      console.error("Error sending message:", err);
-      setError(
-        err.error || err.message || "Failed to send message. Please try again."
-      );
+      console.error(err);
+      setError("Failed to send message.");
       // Remove the user message if there was an error
       setMessages((prev) => prev.slice(0, -1));
     } finally {
-      setIsLoading(false);
+      setGenerating(false);
     }
   };
 
@@ -236,9 +279,15 @@ function App() {
             ) : (
               <>
                 {messages.map((message, index) => (
-                  <Message key={index} message={message} />
+                  <Message key={index} message={message} isLoading={false} />
                 ))}
-                {isLoading && (
+                {retrieving && (
+                  <Message
+                    message={{ role: "assistant", content: "Retrieving..." }}
+                    isLoading={true}
+                  />
+                )}
+                {generating && (
                   <Message
                     message={{ role: "assistant", content: "" }}
                     isLoading={true}
@@ -252,7 +301,7 @@ function App() {
 
         <ChatInput
           onSendMessage={handleSendMessage}
-          disabled={isLoading || modelsLoading}
+          disabled={retrieving || generating || modelsLoading}
           selectedModel={selectedModelName}
         />
       </div>

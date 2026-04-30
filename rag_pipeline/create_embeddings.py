@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PDFPlumberLoader
 from src.vectorstore import CHROMAVectorStore
 
 def load_pdfs_from_directory(directory: str = "./data"):
@@ -26,7 +26,7 @@ def load_pdfs_from_directory(directory: str = "./data"):
     for pdf_file in pdf_files:
         try:
             print(f"\nLoading: {pdf_file.name}...")
-            loader = PyPDFLoader(str(pdf_file))
+            loader = PDFPlumberLoader(str(pdf_file))
             docs = loader.load()
             
             # Add source file to metadata

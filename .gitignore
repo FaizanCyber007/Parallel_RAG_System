@@ -75,15 +75,15 @@ logs/
 chroma.sqlite3*
 data/chats.json
 
-# Vector Store Data - SENSITIVE
-rag_pipeline/src/vectorStore/
-**/vectorStore/*.sqlite3*
-**/vectorStore/*.parquet
-**/vectorStore/*.bin
+# # Vector Store Data - SENSITIVE
+# rag_pipeline/src/vectorStore/
+# **/vectorStore/*.sqlite3*
+# **/vectorStore/*.parquet
+# **/vectorStore/*.bin
 
-# PDF Files - May contain sensitive data
-rag_pipeline/data/*.pdf
-data/*.pdf
+# # PDF Files - May contain sensitive data
+# rag_pipeline/data/*.pdf
+# data/*.pdf
 
 # CSV Files with data
 rag_pipeline/*.csv

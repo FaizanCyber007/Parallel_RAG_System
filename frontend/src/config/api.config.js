@@ -7,6 +7,7 @@ export const API_ENDPOINTS = {
   MODELS: `${API_BASE_URL}/api/chat/models`,
   CHAT: `${API_BASE_URL}/api/chat`,
   CHAT_HISTORY: `${API_BASE_URL}/api/chat/history`,
+  RAG_RETRIEVE: `http://localhost:8000/retrieve`,
 };
 
 export default API_BASE_URL;
